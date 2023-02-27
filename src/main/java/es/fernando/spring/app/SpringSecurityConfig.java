@@ -9,7 +9,9 @@ import org.springframework.security.config.annotation.web.configuration.WebSecur
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
-import es.fernando.spring.app.auth.filter.JWTAuthFilter;
+import es.fernando.spring.app.auth.filter.JWTAuthenticationFilter;
+import es.fernando.spring.app.auth.filter.JWTAuthoritationFilter;
+import es.fernando.spring.app.auth.service.JWTService;
 import es.fernando.spring.app.service.impl.JpaUserDetailService;
 
 @Configuration
@@ -20,6 +22,9 @@ public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
 	
 	@Autowired
 	private BCryptPasswordEncoder passwordEncoder;
+	
+	@Autowired
+	private JWTService jwtService;
 	
 	
 	@Bean
@@ -40,7 +45,9 @@ public class SpringSecurityConfig extends WebSecurityConfigurerAdapter {
 		.anyRequest().authenticated()
 		/*.and().formLogin().loginPage("/login").permitAll()
 		.and().logout().permitAll()*/
-		.and().addFilter(new JWTAuthFilter(authenticationManager()))
+		.and()
+		.addFilter(new JWTAuthenticationFilter(authenticationManager(), jwtService))
+		.addFilter(new JWTAuthoritationFilter(authenticationManager(), jwtService))
 		.csrf().disable()
 		.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
 	}

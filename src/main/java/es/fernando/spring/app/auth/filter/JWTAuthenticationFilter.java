@@ -1,8 +1,6 @@
 package es.fernando.spring.app.auth.filter;
 
 import java.io.IOException;
-import java.security.Key;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -23,18 +21,30 @@ import com.fasterxml.jackson.core.JsonParseException;
 import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import es.fernando.spring.app.auth.service.JWTService;
+import es.fernando.spring.app.constants.Constants;
 import es.fernando.spring.app.entity.Usuario;
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.security.Keys;
 
-public class JWTAuthFilter extends UsernamePasswordAuthenticationFilter {
+public class JWTAuthenticationFilter extends UsernamePasswordAuthenticationFilter {
 	private AuthenticationManager authmanager;
-	public static final Key SECRET_KEY = Keys.secretKeyFor(SignatureAlgorithm.HS512);
-
-	public JWTAuthFilter(AuthenticationManager authmanager) {
+	private JWTService jwtService;
+	public JWTAuthenticationFilter(AuthenticationManager authmanager, JWTService jwtService) {
 		this.authmanager = authmanager;
+		this.jwtService = jwtService;
 		setRequiresAuthenticationRequestMatcher(new AntPathRequestMatcher("/api/login", "POST"));
+	}
+
+	@Override
+	protected void unsuccessfulAuthentication(HttpServletRequest request, HttpServletResponse response,
+			AuthenticationException failed) throws IOException, ServletException {
+
+		Map<String, Object> body = new HashMap<String, Object>();
+		body.put("mensaje", "Error de auth");
+		body.put("error", failed.getMessage());
+		response.getWriter().write(new ObjectMapper().writeValueAsString(body));
+		response.setStatus(401);
+		response.setContentType("application/json");
+
 	}
 
 	@Override
@@ -69,12 +79,9 @@ public class JWTAuthFilter extends UsernamePasswordAuthenticationFilter {
 	@Override
 	protected void successfulAuthentication(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
 			Authentication authResult) throws IOException, ServletException {
-		String username = ((User) authResult.getPrincipal()).getUsername();
 
-		String token = Jwts.builder().setSubject(username).signWith(SECRET_KEY)
-				.setExpiration(new Date(System.currentTimeMillis() + 3600000 * 4)).compact();
-
-		response.addHeader("Authorization", "Bearer " + token);
+		String token = jwtService.create(authResult);
+		response.addHeader(Constants.AUTHORITATION, Constants.BEARER + token);
 		Map<String, Object> body = new HashMap<String, Object>();
 		body.put("token", token);
 		body.put("user", (User) authResult.getPrincipal());
